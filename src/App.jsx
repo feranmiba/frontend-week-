@@ -3,7 +3,7 @@ import ConnectButton from "./components/ConnectButton";
 import { useWalletConnection } from "./hooks/useWalletConnect";
 
 function App() {
-  const { account, chainId, balance } = useWalletConnection();
+  const { account, chainId, balance, handleRefetchBalance } = useWalletConnection();
 
 
   return (
@@ -22,7 +22,23 @@ function App() {
 
       {balance && (
         <>
-          <p>Balance: {balance}</p>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", margin: "10px 0" }}>
+            <p style={{ margin: 0 }}>Balance: {balance}</p>
+            <button
+              onClick={handleRefetchBalance}
+              style={{
+                padding: "6px 12px",
+                backgroundColor: "#007bff",
+                color: "white",
+                border: "none",
+                borderRadius: "4px",
+                cursor: "pointer",
+                fontSize: "14px",
+              }}
+            >
+              Refetch
+            </button>
+          </div>
         </>
       )}
       <ConnectButton />

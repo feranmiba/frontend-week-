@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { BrowserProvider, JsonRpcSigner, formatEther } from "ethers";
-import { EIP6963AnnounceProvider, EIP6963RequestProvider, supportedChains } from "../constants";
+import { EIP6963AnnounceProvider, EIP6963RequestProvider, supportedChains, chainInfo } from "../constants";
 
 export const useWalletConnection = () => {
   const [account, setAccount] = useState("");
@@ -35,6 +35,7 @@ export const useWalletConnection = () => {
     await setAccountAndSigner(accounts);
     const network = await browserProvider.getNetwork();
     setChainId(Number(network.chainId));
+    handleSupportedChains(network.chainId)
   }, [browserProvider, setAccountAndSigner]);
 
   const disconnectWallet = useCallback(async () => {
@@ -69,26 +70,53 @@ export const useWalletConnection = () => {
 
   const handleSupportedChains = useCallback((chainId) => {
     if (!supportedChains.includes(parseInt(chainId, 16))) {
-      console.error("Unsupported chain. Please connect to a supported chain.");
+      const supportedChainList = supportedChains
+        .map(id => chainInfo[id]?.name || `Chain ${id}`)
+        .join(", ");
       setAccount("");
       setChainId(0);
       setBalance(null);
-      setError("Unsupported chain. Please connect to a supported chain.");
+      setError(`Unsupported chain. Supported chains: ${supportedChainList}`);
       return false;
-    } else {
-        setError("");
-    }
+    } 
+    setError(null);
     return true;
   }, []);
 
+
+    const switchChain = useCallback(async (targetChainId) => {
+    if (!provider) {
+      throw new Error("No wallet provider detected.");
+    }
+    try {
+      await provider.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: chainInfo[targetChainId].hex }],
+      });
+    } catch (error) {
+      console.error("Failed to switch chain:", error);
+      setError(`Failed to switch to ${chainInfo[targetChainId]?.name || `Chain ${targetChainId}`}`);
+    }
+  }, [provider]);
+
+
+  const handleRefetchBalance = useCallback(async () => {
+    if (!browserProvider || !account) {
+      return;
+    }
+    const balance = await browserProvider.getBalance(account);
+    setBalance(formatEther(balance));
+  }, [browserProvider, account]);
+
+
   const handleChainChanged = useCallback((newChainId) => {
 
-    handleSupportedChains(chainId)
+    handleSupportedChains(newChainId)
 
     setChainId(parseInt(newChainId, 16));
 
     setBalance(null);
-  }, []);
+  }, [handleSupportedChains]);
 
   const handleDisconnect = useCallback(
     async (error) => {
@@ -107,6 +135,8 @@ export const useWalletConnection = () => {
     //   1 * 10*18;
     }
   }, [browserProvider, account]);
+
+
 
   useEffect(() => {
     const init = async () => {
@@ -178,6 +208,8 @@ export const useWalletConnection = () => {
     };
   }, []);
 
+
+
   return {
     account,
     provider,
@@ -187,7 +219,12 @@ export const useWalletConnection = () => {
     chainId,
     connectWallet,
     disconnectWallet,
+    switchChain,
+    supportedChains,
+    chainInfo,
     getBalance,
+    handleRefetchBalance,
     error,
+
   };
 };
